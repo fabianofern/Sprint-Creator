@@ -1,0 +1,186 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Company {
+  id           String    @id @default(uuid()) @db.Uuid
+  name         String
+  externalPfId String?   @map("external_pf_id")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  createdBy    String    @map("created_by")
+  projects     Project[]
+
+  @@map("company")
+}
+
+model Project {
+  id            String          @id @default(uuid()) @db.Uuid
+  companyId     String          @map("company_id") @db.Uuid
+  name          String
+  description   String?
+  unitOfMeasure UnitOfMeasure   @map("unit_of_measure")
+  status        ProjectStatus   @default(active)
+  startDate     DateTime?       @map("start_date")
+  endDate       DateTime?       @map("end_date")
+  createdAt     DateTime        @default(now()) @map("created_at")
+  updatedAt     DateTime        @updatedAt @map("updated_at")
+  createdBy     String          @map("created_by")
+  company       Company         @relation(fields: [companyId], references: [id])
+  teamMembers   TeamMember[]
+  backlogItems  BacklogItem[]
+  sprints       Sprint[]
+  velocityHistories VelocityHistory[]
+  userProfiles  UserProfile[]
+
+  @@map("project")
+}
+
+model TeamMember {
+  id                 String   @id @default(uuid()) @db.Uuid
+  projectId          String   @map("project_id") @db.Uuid
+  name               String
+  role               String
+  allocation         Decimal  @db.Decimal(5, 2)
+  dailyHours         Decimal  @map("daily_hours") @db.Decimal(5, 2)
+  productivityFactor Decimal  @map("productivity_factor") @db.Decimal(5, 2)
+  isActive           Boolean  @default(true) @map("is_active")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+  project            Project  @relation(fields: [projectId], references: [id])
+
+  @@map("team_member")
+}
+
+model BacklogItem {
+  id          String        @id @default(uuid()) @db.Uuid
+  projectId   String        @map("project_id") @db.Uuid
+  sprintId    String?       @map("sprint_id") @db.Uuid
+  title       String
+  description String?
+  size        Decimal       @db.Decimal(10, 2)
+  status      BacklogStatus @default(backlog)
+  priority    Priority      @default(medium)
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+  doneAt      DateTime?     @map("done_at")
+  project     Project       @relation(fields: [projectId], references: [id])
+  sprint      Sprint?       @relation(fields: [sprintId], references: [id])
+
+  @@map("backlog_item")
+}
+
+model Sprint {
+  id                 String            @id @default(uuid()) @db.Uuid
+  projectId          String            @map("project_id") @db.Uuid
+  name               String
+  goal               String?
+  startDate          DateTime          @map("start_date")
+  endDate            DateTime          @map("end_date")
+  capacityPlanned    Decimal           @map("capacity_planned") @db.Decimal(10, 2)
+  capacityAdjustment Decimal           @default(0) @map("capacity_adjustment") @db.Decimal(10, 2)
+  scopePlanned       Decimal           @default(0) @map("scope_planned") @db.Decimal(10, 2)
+  scopeDelivered     Decimal?          @map("scope_delivered") @db.Decimal(10, 2)
+  status             SprintStatus      @default(planning)
+  isBaseline         Boolean           @default(false) @map("is_baseline")
+  createdAt          DateTime          @default(now()) @map("created_at")
+  updatedAt          DateTime          @updatedAt @map("updated_at")
+  project            Project           @relation(fields: [projectId], references: [id])
+  backlogItems       BacklogItem[]
+  velocityHistories  VelocityHistory[]
+  scenarios          Scenario[]
+
+  @@map("sprint")
+}
+
+model VelocityHistory {
+  id           String   @id @default(uuid()) @db.Uuid
+  projectId    String   @map("project_id") @db.Uuid
+  sprintId     String   @map("sprint_id") @db.Uuid
+  planned      Decimal  @db.Decimal(10, 2)
+  delivered    Decimal  @db.Decimal(10, 2)
+  capacityUsed Decimal  @map("capacity_used") @db.Decimal(10, 2)
+  velocity     Decimal  @db.Decimal(10, 4)
+  createdAt    DateTime @default(now()) @map("created_at")
+  project      Project  @relation(fields: [projectId], references: [id])
+  sprint       Sprint   @relation(fields: [sprintId], references: [id])
+
+  @@map("velocity_history")
+}
+
+model Scenario {
+  id               String    @id @default(uuid()) @db.Uuid
+  sprintId         String    @map("sprint_id") @db.Uuid
+  name             String
+  scope            Json
+  adjustedCapacity Decimal   @map("adjusted_capacity") @db.Decimal(10, 2)
+  riskLevel        RiskLevel @map("risk_level")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  sprint           Sprint    @relation(fields: [sprintId], references: [id])
+
+  @@map("scenario")
+}
+
+model UserProfile {
+  id           String      @id @default(uuid()) @db.Uuid
+  portalUserId String      @map("portal_user_id")
+  projectId    String      @map("project_id") @db.Uuid
+  profile      ToolProfile @map("profile")
+  createdAt    DateTime    @default(now()) @map("created_at")
+  project      Project     @relation(fields: [projectId], references: [id])
+
+  @@unique([portalUserId, projectId])
+  @@map("user_profile")
+}
+
+enum UnitOfMeasure {
+  hours
+  story_points
+  pf
+  t_shirt
+}
+
+enum ProjectStatus {
+  active
+  archived
+  cancelled
+}
+
+enum Priority {
+  low
+  medium
+  high
+  critical
+}
+
+enum BacklogStatus {
+  backlog
+  planned
+  in_progress
+  done
+  cancelled
+}
+
+enum SprintStatus {
+  planning
+  active
+  completed
+  cancelled
+}
+
+enum RiskLevel {
+  low
+  medium
+  high
+}
+
+enum ToolProfile {
+  administrador
+  operador
+  visualizador
+}

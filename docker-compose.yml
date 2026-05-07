@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: sprintcreator-db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: sprintcreator
+    ports:
+      - "5435:5432"
+    volumes:
+      - .docker-data/postgres:/var/lib/postgresql/data
